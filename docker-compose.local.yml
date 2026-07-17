@@ -3,6 +3,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        # Pin Chrome major (must stay compatible with the pinned SeleniumBase).
+        # Override via CHROME_MAJOR in .env when bumping Chrome + SeleniumBase together.
+        CHROME_MAJOR: ${CHROME_MAJOR:-138}
     container_name: listsync-full
     ports:
       # Frontend (Nuxt 3 Dashboard) 

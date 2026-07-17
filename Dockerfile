@@ -146,17 +146,26 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
 # Install browser and driver based on architecture
 ARG TARGETARCH
 
-RUN echo "Building for architecture: $TARGETARCH" && \
+# Pin Chrome for Testing to a major version the pinned SeleniumBase (see poetry.lock)
+# can drive. IMPORTANT: Chrome and SeleniumBase MUST be upgraded together — a Chrome
+# newer than SeleniumBase supports breaks uc-mode scraping with "Active window was
+# already closed". That is why this is pinned instead of tracking latest stable.
+# Override to match a specific known-good build: --build-arg CHROME_MAJOR=NNN
+ARG CHROME_MAJOR=138
+
+RUN echo "Building for architecture: $TARGETARCH (Chrome major: ${CHROME_MAJOR})" && \
     if [ "$TARGETARCH" = "amd64" ]; then \
-        # AMD64: Use Chrome for Testing (latest stable)
+        # AMD64: Use Chrome for Testing pinned to CHROME_MAJOR (latest patch of that major)
         PLATFORM="linux64" && \
-        echo "Fetching latest Chrome for Testing version..." && \
-        CHROME_VERSION=$(curl -s "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json" | \
-            jq -r '.channels.Stable.version') && \
-        CHROME_URL=$(curl -s "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json" | \
-            jq -r ".channels.Stable.downloads.chrome[] | select(.platform == \"$PLATFORM\") | .url") && \
-        DRIVER_URL=$(curl -s "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json" | \
-            jq -r ".channels.Stable.downloads.chromedriver[] | select(.platform == \"$PLATFORM\") | .url") && \
+        CFT_JSON="https://googlechromelabs.github.io/chrome-for-testing/known-good-versions-with-downloads.json" && \
+        echo "Selecting latest Chrome for Testing patch for major ${CHROME_MAJOR}..." && \
+        CFT=$(curl -s "$CFT_JSON") && \
+        CHROME_VERSION=$(echo "$CFT" | jq -r --arg M "$CHROME_MAJOR" '[.versions[] | select(.version | startswith($M + "."))] | last | .version') && \
+        if [ -z "$CHROME_VERSION" ] || [ "$CHROME_VERSION" = "null" ]; then \
+            echo "ERROR: no Chrome for Testing build found for major ${CHROME_MAJOR}" && exit 1; \
+        fi && \
+        CHROME_URL=$(echo "$CFT" | jq -r --arg M "$CHROME_MAJOR" --arg P "$PLATFORM" '[.versions[] | select(.version | startswith($M + "."))] | last | .downloads.chrome[] | select(.platform == $P) | .url') && \
+        DRIVER_URL=$(echo "$CFT" | jq -r --arg M "$CHROME_MAJOR" --arg P "$PLATFORM" '[.versions[] | select(.version | startswith($M + "."))] | last | .downloads.chromedriver[] | select(.platform == $P) | .url') && \
         echo "Downloading Chrome ${CHROME_VERSION} for ${PLATFORM}" && \
         echo "Chrome URL: $CHROME_URL" && \
         echo "ChromeDriver URL: $DRIVER_URL" && \
