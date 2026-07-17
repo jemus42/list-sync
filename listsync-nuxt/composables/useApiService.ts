@@ -243,6 +243,18 @@ export function useApiService() {
       return apiCall(`${baseURL}/requested?page=${page}&limit=${limit}`)
     },
 
+    async getNeedsReviewItems(
+      page: number = 1,
+      limit: number = 50,
+      search: string = '',
+      mediaType: string = ''
+    ) {
+      let url = `${baseURL}/needs-review?page=${page}&limit=${limit}`
+      if (search) url += `&search=${encodeURIComponent(search)}`
+      if (mediaType && mediaType !== 'all') url += `&media_type_filter=${mediaType}`
+      return apiCall(url)
+    },
+
     // Overseerr Integration
     async getOverseerrStatus() {
       return apiCall(`${baseURL}/overseerr/status`)

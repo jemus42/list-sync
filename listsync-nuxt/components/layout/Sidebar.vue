@@ -107,6 +107,7 @@ import {
   History as HistoryIcon,
   Settings as SettingsIcon,
   Database as DatabaseIcon,
+  SearchCheck as ReviewIcon,
   FileText as LogsIcon,
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
@@ -141,6 +142,11 @@ const navigation = [
     label: 'Items',
     path: '/items',
     icon: DatabaseIcon,
+  },
+  {
+    label: 'Review Queue',
+    path: '/review',
+    icon: ReviewIcon,
   },
   {
     label: 'Sync',

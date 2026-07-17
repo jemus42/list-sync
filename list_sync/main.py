@@ -543,10 +543,11 @@ def process_media_item(item: Dict[str, Any], overseerr_client: OverseerrClient, 
         search_result = None
         match_method = None
 
-        # Strict matching: only accept exact ID-based matches (Methods 1 & 2). When no
-        # stable ID resolves, flag the item as 'needs_review' instead of guessing via
-        # fuzzy title search, which is what produces wrong-film requests.
-        strict_match = os.getenv("LISTSYNC_STRICT_MATCH", "false").lower() == "true"
+        # Strict matching (default on): only accept exact ID-based matches (Methods 1 &
+        # 2). When no stable ID resolves, flag the item as 'needs_review' instead of
+        # guessing via fuzzy title search, which is what produces wrong-film requests.
+        # Set LISTSYNC_STRICT_MATCH=false to re-enable the legacy fuzzy fallback.
+        strict_match = os.getenv("LISTSYNC_STRICT_MATCH", "true").lower() == "true"
 
         # METHOD 1: Direct TMDB ID lookup (fastest, most reliable)
         if tmdb_id:

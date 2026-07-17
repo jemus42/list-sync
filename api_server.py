@@ -445,6 +445,7 @@ def get_deduplicated_items():
             'already_available': 80,
             'available': 70,
             'not_found': 20,
+            'needs_review': 15,
             'error': 10,
             'skipped': 5  # Lowest priority
         }
@@ -3306,6 +3307,78 @@ async def get_items(page: int = Query(1, ge=1), limit: int = Query(50, ge=1, le=
                 "list_sources": list_sources
             })
         
+        return {
+            "items": items,
+            "total": total,
+            "page": page,
+            "limit": limit,
+            "total_pages": total_pages
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/needs-review")
+async def get_needs_review_items(
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=100),
+    search: str = Query("", description="Filter by title"),
+    media_type_filter: str = Query("", description="Filter by media type (movie/tv)")
+):
+    """
+    Items flagged 'needs_review' — strict matching found no exact ID match, so they
+    were deliberately not requested and await manual attention.
+    """
+    try:
+        if not os.path.exists(DB_FILE):
+            return {"items": [], "total": 0, "page": page, "limit": limit, "total_pages": 0}
+
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT id, title, media_type, year, last_synced, source_list_type, source_list_id "
+            "FROM synced_items WHERE status = 'needs_review'"
+        )
+        rows = cursor.fetchall()
+        conn.close()
+
+        # Deduplicate by title+media_type, keeping the most recently synced occurrence
+        unique = {}
+        for r in rows:
+            key = f"{r[1]}_{r[2]}".lower().strip()
+            if key not in unique or (r[4] or "") > (unique[key][4] or ""):
+                unique[key] = r
+        items_list = list(unique.values())
+
+        # Filters
+        if search.strip():
+            term = search.strip().lower()
+            items_list = [r for r in items_list if term in (r[1] or "").lower()]
+        if media_type_filter.strip() and media_type_filter != "all":
+            items_list = [r for r in items_list if r[2] == media_type_filter]
+
+        # Most recent first
+        items_list.sort(key=lambda r: r[4] or "", reverse=True)
+
+        total = len(items_list)
+        total_pages = (total + limit - 1) // limit
+        start = (page - 1) * limit
+        page_rows = items_list[start:start + limit]
+
+        items = []
+        for item_id, title, media_type, year, last_synced, slt, sli in page_rows:
+            list_sources = []
+            if slt and sli:
+                list_sources.append({"list_type": slt, "list_id": sli, "display_name": None})
+            items.append({
+                "id": item_id,
+                "title": title,
+                "media_type": media_type,
+                "year": year,
+                "last_synced": last_synced,
+                "list_sources": list_sources,
+            })
+
         return {
             "items": items,
             "total": total,
