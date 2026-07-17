@@ -19,6 +19,7 @@ class SyncResults:
         self.start_time = time.time()
         self.not_found_items = []  # For #1
         self.error_items = []      # For #4
+        self.needs_review_items = []  # Strict mode: no exact ID match, awaiting manual review
         self.media_type_counts = {"movie": 0, "tv": 0}  # For #5
         self.year_distribution = {
             "pre-1980": 0,
@@ -34,6 +35,7 @@ class SyncResults:
             "already_requested": 0,
             "already_available": 0,
             "not_found": 0,
+            "needs_review": 0,
             "error": 0,
             "skipped": 0
         }
@@ -57,7 +59,10 @@ class SyncResults:
         summary += f"✅ Requested: {self.results['requested']}\n"
         summary += f"☑️ Available: {self.results['already_available']}\n"
         summary += f"📌 Already Requested: {self.results['already_requested']}\n"
-        summary += f"⏭️ Skipped: {self.results['skipped']}\n\n"
+        summary += f"⏭️ Skipped: {self.results['skipped']}\n"
+        if self.results['needs_review']:
+            summary += f"🔎 Needs Review: {self.results['needs_review']}\n"
+        summary += "\n"
         summary += "Media Types\n"
         summary += "──────────\n"
         summary += f"Movies: {self.media_type_counts['movie']} ({self.media_type_counts['movie']/total_items*100:.1f}%)\n"
@@ -90,7 +95,14 @@ class SyncResults:
             summary += "───────────────\n"
             for item_line in all_failed_items:
                 summary += f"{item_line}\n"
-        
+
+        # Needs Review items (strict mode: no exact ID match, not requested)
+        if self.needs_review_items:
+            summary += f"\nNeeds Review ({len(self.needs_review_items)})\n"
+            summary += "───────────────\n"
+            for item in self.needs_review_items:
+                summary += f"• {item['title']}\n"
+
         return summary
 
 def display_ascii_art():

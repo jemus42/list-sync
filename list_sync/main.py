@@ -542,7 +542,12 @@ def process_media_item(item: Dict[str, Any], overseerr_client: OverseerrClient, 
         
         search_result = None
         match_method = None
-        
+
+        # Strict matching: only accept exact ID-based matches (Methods 1 & 2). When no
+        # stable ID resolves, flag the item as 'needs_review' instead of guessing via
+        # fuzzy title search, which is what produces wrong-film requests.
+        strict_match = os.getenv("LISTSYNC_STRICT_MATCH", "false").lower() == "true"
+
         # METHOD 1: Direct TMDB ID lookup (fastest, most reliable)
         if tmdb_id:
             # Ensure tmdb_id is an integer (may be string from collections)
@@ -583,8 +588,8 @@ def process_media_item(item: Dict[str, Any], overseerr_client: OverseerrClient, 
             else:
                 logging.info(f"⚠️  WARNING: Trakt could not resolve IMDB ID {imdb_id} to TMDB ID")
         
-        # METHOD 3: Title/Year → Trakt → TMDB ID
-        if not search_result:
+        # METHOD 3: Title/Year → Trakt → TMDB ID (fuzzy; skipped in strict mode)
+        if not search_result and not strict_match:
             logging.info(f"🔍 METHOD 3: Title/Year → Trakt → TMDB ID")
             trakt_result = search_trakt_by_title(search_title, year, media_type)
             if trakt_result and trakt_result.get('tmdb_id'):
@@ -609,8 +614,8 @@ def process_media_item(item: Dict[str, Any], overseerr_client: OverseerrClient, 
             else:
                 logging.info(f"⚠️  Trakt could not find TMDB ID for '{search_title}' ({year})")
         
-        # METHOD 4: Fallback to Overseerr title search (least reliable)
-        if not search_result:
+        # METHOD 4: Fallback to Overseerr title search (least reliable; skipped in strict mode)
+        if not search_result and not strict_match:
             logging.warning(f"⚠️  METHOD 4: Falling back to Overseerr title search (less reliable)")
             search_result = overseerr_client.search_media(
                 search_title,  # Use cleaned title for search
@@ -708,16 +713,22 @@ def process_media_item(item: Dict[str, Any], overseerr_client: OverseerrClient, 
                         save_sync_result(title, media_type, imdb_id, overseerr_id, "request_failed", year, tmdb_id, source_list['type'], source_list['id'])
                     return {"title": title, "status": "request_failed", "year": year, "media_type": media_type}
         else:
-            logging.error(f"❌ ERROR: Could not find match using any method")
+            # In strict mode we deliberately skipped fuzzy matching, so this is not a
+            # "not found" but an item that needs manual review / an exact ID.
+            no_match_status = "needs_review" if strict_match else "not_found"
+            if strict_match:
+                logging.warning(f"🔎 NEEDS REVIEW: No exact ID match for '{title}' ({year}); skipped fuzzy matching (strict mode)")
+            else:
+                logging.error(f"❌ ERROR: Could not find match using any method")
             # Get list information from item using helper function
             source_lists = get_source_lists_from_item(item, list_type, list_id)
             # Save relationship for all source lists
             if source_lists:
                 for source_list in source_lists:
-                    save_sync_result(title, media_type, imdb_id, None, "not_found", year, tmdb_id, source_list['type'], source_list['id'])
+                    save_sync_result(title, media_type, imdb_id, None, no_match_status, year, tmdb_id, source_list['type'], source_list['id'])
             else:
-                logging.error(f"❌ CRITICAL: Cannot save 'not_found' item without list information!")
-            return {"title": title, "status": "not_found", "year": year, "media_type": media_type}
+                logging.error(f"❌ CRITICAL: Cannot save '{no_match_status}' item without list information!")
+            return {"title": title, "status": no_match_status, "year": year, "media_type": media_type}
     except Exception as e:
         logging.error(f"❌ ERROR: Exception during processing: {str(e)}")
         logging.debug(f"Exception details:", exc_info=True)
@@ -790,8 +801,8 @@ def sync_media_to_overseerr(
             try:
                 result = process_media_item(item, overseerr_client, dry_run, is_4k)
                 status = result["status"]
-                sync_results.results[status] += 1
-                
+                sync_results.results[status] = sync_results.results.get(status, 0) + 1
+
                 # Display progress
                 title = item.get('title', 'Unknown')
                 year = item.get('year', '')
@@ -845,8 +856,8 @@ def sync_media_to_overseerr(
                 try:
                     result = process_media_item(item, overseerr_client, dry_run, is_4k)
                     status = result["status"]
-                    sync_results.results[status] += 1
-                    
+                    sync_results.results[status] = sync_results.results.get(status, 0) + 1
+
                     # Add clear log boundary after each item
                     logging.info(f"{'='*80}")
                     logging.info(f"✅ COMPLETED ITEM {start_idx + i + 1}/{sync_results.total_items} - Status: {status.upper()}")
@@ -887,6 +898,14 @@ def sync_media_to_overseerr(
                         else:
                             title_with_year = title
                         sync_results.not_found_items.append({
+                            "title": title_with_year,
+                            "year": year
+                        })
+                    elif status == "needs_review":
+                        title = result["title"].strip()
+                        year = result["year"]
+                        title_with_year = f"{title} ({year})" if year else title
+                        sync_results.needs_review_items.append({
                             "title": title_with_year,
                             "year": year
                         })

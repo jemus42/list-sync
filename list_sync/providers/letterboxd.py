@@ -3,12 +3,187 @@ Letterboxd provider for ListSync.
 """
 
 import logging
+import os
 import re
-from typing import List, Dict, Any
+import sqlite3
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import List, Dict, Any, Optional, Tuple
 
+import requests
 from seleniumbase import SB
 
 from . import register_provider, check_and_raise_if_cancelled, SyncCancelledException
+from ..utils.logger import DATA_DIR
+
+# Persistent cache of Letterboxd film slug -> (tmdb_id, media_type). The mapping is
+# stable for a given film, so once resolved it never needs to be fetched again.
+_CACHE_DB = os.path.join(DATA_DIR, "list_sync.db")
+
+# Regexes for the TMDB identity Letterboxd exposes on every film page's <body>:
+#   <body ... data-tmdb-id="496243" data-tmdb-type="movie" ...>
+_TMDB_ID_RE = re.compile(r'data-tmdb-id="(\d+)"')
+_TMDB_TYPE_RE = re.compile(r'data-tmdb-type="(movie|tv)"')
+
+_LETTERBOXD_FILM_URL = "https://letterboxd.com/film/{slug}/"
+_RESOLVE_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/120.0 Safari/537.36"
+    )
+}
+
+
+def _ensure_cache_table() -> None:
+    """Create the slug->TMDB cache table if it does not exist (best-effort)."""
+    try:
+        with sqlite3.connect(_CACHE_DB) as conn:
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS letterboxd_tmdb_cache (
+                    slug        TEXT PRIMARY KEY,
+                    tmdb_id     INTEGER,
+                    media_type  TEXT,
+                    resolved_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+                """
+            )
+    except sqlite3.Error as e:
+        # If the cache can't be created (locked/unwritable DB), resolution still
+        # works live — cache reads/writes are individually guarded and degrade to no-ops.
+        logging.warning(f"Letterboxd TMDB cache unavailable ({e}); resolving without cache")
+
+
+def _cache_get_many(slugs: List[str]) -> Dict[str, Tuple[Optional[int], Optional[str]]]:
+    """Return cached (tmdb_id, media_type) for any of the given slugs already resolved."""
+    if not slugs:
+        return {}
+    out: Dict[str, Tuple[Optional[int], Optional[str]]] = {}
+    try:
+        with sqlite3.connect(_CACHE_DB) as conn:
+            placeholders = ",".join("?" for _ in slugs)
+            rows = conn.execute(
+                f"SELECT slug, tmdb_id, media_type FROM letterboxd_tmdb_cache WHERE slug IN ({placeholders})",
+                slugs,
+            ).fetchall()
+        for slug, tmdb_id, media_type in rows:
+            out[slug] = (tmdb_id, media_type)
+    except sqlite3.Error as e:
+        logging.warning(f"Letterboxd TMDB cache read failed: {e}")
+    return out
+
+
+def _cache_put(slug: str, tmdb_id: Optional[int], media_type: Optional[str]) -> None:
+    """Persist a resolved slug so future syncs skip the network fetch."""
+    try:
+        with sqlite3.connect(_CACHE_DB) as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO letterboxd_tmdb_cache (slug, tmdb_id, media_type) VALUES (?, ?, ?)",
+                (slug, tmdb_id, media_type),
+            )
+    except sqlite3.Error as e:
+        logging.warning(f"Letterboxd TMDB cache write failed for '{slug}': {e}")
+
+
+def _resolve_one(slug: str) -> Tuple[Optional[int], Optional[str]]:
+    """
+    Fetch a Letterboxd film page and extract its exact TMDB id and type.
+
+    Returns:
+        (tmdb_id, media_type) where media_type is 'movie' or 'tv', or (None, None)
+        if the page could not be fetched or exposes no TMDB id.
+    """
+    url = _LETTERBOXD_FILM_URL.format(slug=slug)
+    try:
+        resp = requests.get(url, headers=_RESOLVE_HEADERS, timeout=15)
+        if resp.status_code != 200:
+            logging.debug(f"Letterboxd film page {slug} returned HTTP {resp.status_code}")
+            return None, None
+        html = resp.text
+        id_match = _TMDB_ID_RE.search(html)
+        if not id_match:
+            return None, None
+        type_match = _TMDB_TYPE_RE.search(html)
+        tmdb_type = type_match.group(1) if type_match else "movie"
+        return int(id_match.group(1)), tmdb_type
+    except requests.exceptions.RequestException as e:
+        logging.debug(f"Letterboxd TMDB resolution failed for '{slug}': {e}")
+        return None, None
+
+
+def _resolve_tmdb_ids(media_items: List[Dict[str, Any]]) -> None:
+    """
+    Populate exact TMDB ids on scraped Letterboxd items in place.
+
+    For every item with a slug, resolves the film's canonical TMDB id (and corrects
+    media_type to 'tv' for shows) so downstream matching uses a direct TMDB lookup
+    instead of fuzzy title/year search. Results are cached persistently by slug.
+
+    Controlled by LETTERBOXD_RESOLVE_TMDB (default enabled) and
+    LETTERBOXD_RESOLVE_WORKERS (default 8).
+    """
+    if os.getenv("LETTERBOXD_RESOLVE_TMDB", "true").lower() != "true":
+        logging.info("Letterboxd TMDB resolution disabled via LETTERBOXD_RESOLVE_TMDB")
+        return
+
+    slugged = [it for it in media_items if it.get("slug")]
+    if not slugged:
+        return
+
+    _ensure_cache_table()
+    cached = _cache_get_many(sorted({it["slug"] for it in slugged}))
+
+    resolved = 0
+    from_cache = 0
+    to_fetch: List[Dict[str, Any]] = []
+    for it in slugged:
+        hit = cached.get(it["slug"])
+        if hit is not None:
+            tmdb_id, media_type = hit
+            if tmdb_id:
+                it["tmdb_id"] = tmdb_id
+                if media_type:
+                    it["media_type"] = media_type
+                resolved += 1
+            from_cache += 1
+        else:
+            to_fetch.append(it)
+
+    logging.info(
+        f"🔗 Resolving Letterboxd TMDB ids: {from_cache} cached, {len(to_fetch)} to fetch"
+    )
+
+    if to_fetch:
+        workers = int(os.getenv("LETTERBOXD_RESOLVE_WORKERS", "8") or "8")
+        # De-duplicate slugs so the same film is only fetched once per run.
+        unique_slugs = sorted({it["slug"] for it in to_fetch})
+        results: Dict[str, Tuple[Optional[int], Optional[str]]] = {}
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            futures = {executor.submit(_resolve_one, slug): slug for slug in unique_slugs}
+            for i, future in enumerate(as_completed(futures)):
+                if i % 25 == 0:
+                    check_and_raise_if_cancelled()
+                slug = futures[future]
+                tmdb_id, media_type = future.result()
+                results[slug] = (tmdb_id, media_type)
+                # Only persist successful resolutions. Caching a failure (transient
+                # network error or 5xx) would permanently poison the slug; leaving it
+                # uncached means it is simply retried on the next sync.
+                if tmdb_id:
+                    _cache_put(slug, tmdb_id, media_type)
+
+        for it in to_fetch:
+            tmdb_id, media_type = results.get(it["slug"], (None, None))
+            if tmdb_id:
+                it["tmdb_id"] = tmdb_id
+                if media_type:
+                    it["media_type"] = media_type
+                resolved += 1
+
+    unresolved = len(slugged) - resolved
+    logging.info(
+        f"🔗 Letterboxd TMDB resolution complete: {resolved}/{len(slugged)} resolved"
+        + (f", {unresolved} unresolved (will fall back to title matching)" if unresolved else "")
+    )
 
 
 def _determine_media_type(title: str) -> str:
@@ -255,8 +430,7 @@ def fetch_letterboxd_list(list_id: str) -> List[Dict[str, Any]]:
                     break
             
             logging.info(f"Letterboxd list fetched successfully. Found {len(media_items)} items across {page} pages.")
-            return media_items
-    
+
     except SyncCancelledException:
         logging.warning(f"⚠️ Letterboxd list fetch cancelled by user - returning {len(media_items)} items fetched so far")
         raise
@@ -264,3 +438,8 @@ def fetch_letterboxd_list(list_id: str) -> List[Dict[str, Any]]:
     except Exception as e:
         logging.error(f"Error fetching Letterboxd list: {str(e)}")
         raise
+
+    # Browser is now closed. Resolve each film's exact TMDB id from its Letterboxd
+    # page so downstream matching uses a direct ID lookup instead of fuzzy title search.
+    _resolve_tmdb_ids(media_items)
+    return media_items
