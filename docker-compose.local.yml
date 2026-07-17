@@ -21,7 +21,14 @@ services:
       - SYNC_INTERVAL=${SYNC_INTERVAL:-24}
       - AUTOMATED_MODE=true
       - OVERSEERR_4K=${OVERSEERR_4K:-false}
-      
+
+      # Matching accuracy
+      # Strict: only request exact ID matches; flag the rest as 'needs_review' (see /review)
+      - LISTSYNC_STRICT_MATCH=${LISTSYNC_STRICT_MATCH:-true}
+      # Resolve each Letterboxd film's exact TMDB id from its page (recommended)
+      - LETTERBOXD_RESOLVE_TMDB=${LETTERBOXD_RESOLVE_TMDB:-true}
+      - LETTERBOXD_RESOLVE_WORKERS=${LETTERBOXD_RESOLVE_WORKERS:-8}
+
       # List Configuration (comma-separated)
       - IMDB_LISTS=${IMDB_LISTS:-}
       - TRAKT_LISTS=${TRAKT_LISTS:-}
