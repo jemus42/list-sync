@@ -32,6 +32,8 @@ services:
       # Resolve each Letterboxd film's exact TMDB id from its page (recommended)
       - LETTERBOXD_RESOLVE_TMDB=${LETTERBOXD_RESOLVE_TMDB:-true}
       - LETTERBOXD_RESOLVE_WORKERS=${LETTERBOXD_RESOLVE_WORKERS:-8}
+      # uc-mode scraping: run headed on the container's Xvfb (:99). true = old headless (unstable)
+      - LETTERBOXD_HEADLESS=${LETTERBOXD_HEADLESS:-false}
 
       # List Configuration (comma-separated)
       - IMDB_LISTS=${IMDB_LISTS:-}

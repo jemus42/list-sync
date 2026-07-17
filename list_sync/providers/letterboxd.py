@@ -241,9 +241,14 @@ def fetch_letterboxd_list(list_id: str) -> List[Dict[str, Any]]:
     """
     media_items = []
     logging.info(f"Fetching Letterboxd list: {list_id}")
-    
+
+    # SeleniumBase uc mode is unstable with old headless mode on Linux (Chrome tab hangs
+    # -> chromedriver read timeout). The container runs Xvfb on DISPLAY :99, so default to
+    # running headed on that virtual display. Set LETTERBOXD_HEADLESS=true to force headless.
+    headless = os.getenv("LETTERBOXD_HEADLESS", "false").lower() == "true"
+
     try:
-        with SB(uc=True, headless=True) as sb:
+        with SB(uc=True, headless=headless) as sb:
             # Handle full URLs vs list IDs
             if list_id.startswith(('http://', 'https://')):
                 base_url = list_id.rstrip('/')
