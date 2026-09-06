@@ -261,6 +261,11 @@ RUN echo "[supervisord]" > /etc/supervisor/conf.d/listsync.conf && \
     echo "directory=/usr/src/app" >> /etc/supervisor/conf.d/listsync.conf && \
     echo "autostart=true" >> /etc/supervisor/conf.d/listsync.conf && \
     echo "autorestart=true" >> /etc/supervisor/conf.d/listsync.conf && \
+    # A core that dies before startsecs never reaches RUNNING, so startretries caps it:
+    # a crash loop goes FATAL instead of restarting forever. On 2026-09-06 an unbounded
+    # 6-second loop leaked a Chrome process per iteration until the host ran out of RAM.
+    echo "startsecs=15" >> /etc/supervisor/conf.d/listsync.conf && \
+    echo "startretries=10" >> /etc/supervisor/conf.d/listsync.conf && \
     echo "stdout_logfile=/dev/stdout" >> /etc/supervisor/conf.d/listsync.conf && \
     echo "stderr_logfile=/dev/stderr" >> /etc/supervisor/conf.d/listsync.conf && \
     echo "stdout_logfile_maxbytes=0" >> /etc/supervisor/conf.d/listsync.conf && \
