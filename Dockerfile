@@ -82,23 +82,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Chrome dependencies
     wget \
     unzip \
-    libnss3 \
-    libxss1 \
-    libasound2 \
-    fonts-liberation \
-    libappindicator3-1 \
-    libgbm-dev \
-    libgtk-3-0 \
-    libx11-xcb1 \
-    libxtst6 \
-    xdg-utils \
     libglib2.0-0 \
-    libdrm2 \
-    libxrandr2 \
     ca-certificates \
-    xvfb \
-    dbus-x11 \
-    xauth \
     # Node.js
     curl \
     # Process management
@@ -143,70 +128,12 @@ RUN if [ "$TZ" = "UTC" ]; then \
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y nodejs
 
-# Install browser and driver based on architecture
-ARG TARGETARCH
-
-# Pin Chrome for Testing to a major version the pinned SeleniumBase (see poetry.lock)
-# can drive. IMPORTANT: Chrome and SeleniumBase MUST be upgraded together — a Chrome
-# newer than SeleniumBase supports breaks uc-mode scraping with "Active window was
-# already closed". That is why this is pinned instead of tracking latest stable.
-# Override to match a specific known-good build: --build-arg CHROME_MAJOR=NNN
-ARG CHROME_MAJOR=138
-
-RUN echo "Building for architecture: $TARGETARCH (Chrome major: ${CHROME_MAJOR})" && \
-    if [ "$TARGETARCH" = "amd64" ]; then \
-        # AMD64: Use Chrome for Testing pinned to CHROME_MAJOR (latest patch of that major)
-        PLATFORM="linux64" && \
-        CFT_JSON="https://googlechromelabs.github.io/chrome-for-testing/known-good-versions-with-downloads.json" && \
-        echo "Selecting latest Chrome for Testing patch for major ${CHROME_MAJOR}..." && \
-        CFT=$(curl -s "$CFT_JSON") && \
-        CHROME_VERSION=$(echo "$CFT" | jq -r --arg M "$CHROME_MAJOR" '[.versions[] | select(.version | startswith($M + "."))] | last | .version') && \
-        if [ -z "$CHROME_VERSION" ] || [ "$CHROME_VERSION" = "null" ]; then \
-            echo "ERROR: no Chrome for Testing build found for major ${CHROME_MAJOR}" && exit 1; \
-        fi && \
-        CHROME_URL=$(echo "$CFT" | jq -r --arg M "$CHROME_MAJOR" --arg P "$PLATFORM" '[.versions[] | select(.version | startswith($M + "."))] | last | .downloads.chrome[] | select(.platform == $P) | .url') && \
-        DRIVER_URL=$(echo "$CFT" | jq -r --arg M "$CHROME_MAJOR" --arg P "$PLATFORM" '[.versions[] | select(.version | startswith($M + "."))] | last | .downloads.chromedriver[] | select(.platform == $P) | .url') && \
-        echo "Downloading Chrome ${CHROME_VERSION} for ${PLATFORM}" && \
-        echo "Chrome URL: $CHROME_URL" && \
-        echo "ChromeDriver URL: $DRIVER_URL" && \
-        wget -O /tmp/chrome.zip "$CHROME_URL" && \
-        unzip /tmp/chrome.zip -d /opt/ && \
-        mv /opt/chrome-$PLATFORM /opt/chrome && \
-        ln -sf /opt/chrome/chrome /usr/bin/google-chrome && \
-        chmod +x /usr/bin/google-chrome && \
-        rm /tmp/chrome.zip && \
-        wget -O /tmp/chromedriver.zip "$DRIVER_URL" && \
-        unzip /tmp/chromedriver.zip -d /opt/ && \
-        mv /opt/chromedriver-$PLATFORM/chromedriver /usr/local/bin/ && \
-        chmod +x /usr/local/bin/chromedriver && \
-        rm /tmp/chromedriver.zip && \
-        echo "Chrome and ChromeDriver installation completed for AMD64"; \
-    elif [ "$TARGETARCH" = "arm64" ]; then \
-        # ARM64: Use Chromium from Debian repos (more reliable for ARM)
-        echo "Installing Chromium for ARM64 from Debian repositories..." && \
-        apt-get update && \
-        apt-get install -y --no-install-recommends chromium chromium-driver && \
-        ln -sf /usr/bin/chromium /usr/bin/google-chrome && \
-        ln -sf /usr/bin/chromedriver /usr/local/bin/chromedriver && \
-        rm -rf /var/lib/apt/lists/* && \
-        echo "Chromium installation completed for ARM64"; \
-    else \
-        echo "ERROR: Unsupported architecture: $TARGETARCH" && \
-        exit 1; \
-    fi && \
-    # Verify installation
-    google-chrome --version && \
-    chromedriver --version
+# No browser: every enabled provider fetches over plain HTTP.
 
 # Set environment variables for the final image
 ENV TZ=GMT \
-    SELENIUM_HOST=localhost \
-    SELENIUM_PORT=4444 \
     RUNNING_IN_DOCKER=true \
-    DISPLAY=:99 \
-    SELENIUM_DRIVER_PATH=/usr/local/bin/chromedriver \
-    PYTHONPATH=/usr/src/app \
-    NO_SANDBOX=1
+    PYTHONPATH=/usr/src/app
 
 # Set working directory
 WORKDIR /usr/src/app
@@ -235,8 +162,7 @@ COPY listsync-nuxt/tailwind.config.js ./frontend/
 ENV PATH="/usr/src/app/.venv/bin:$PATH"
 
 # Create necessary directories
-RUN mkdir -p /usr/src/app/data /tmp/.X11-unix /var/log/supervisor && \
-    chmod 1777 /tmp/.X11-unix
+RUN mkdir -p /usr/src/app/data /var/log/supervisor
 
 # Create wrapper script for listsync-core to output to both file and stdout
 RUN echo '#!/bin/bash' > /usr/src/app/run-listsync-core.sh && \
@@ -304,17 +230,6 @@ RUN echo "[supervisord]" > /etc/supervisor/conf.d/listsync.conf && \
     echo "stderr_logfile_maxbytes=1MB" >> /etc/supervisor/conf.d/listsync.conf && \
     echo "redirect_stderr=true" >> /etc/supervisor/conf.d/listsync.conf && \
     echo "priority=100" >> /etc/supervisor/conf.d/listsync.conf && \
-    echo "" >> /etc/supervisor/conf.d/listsync.conf && \
-    echo "[program:xvfb]" >> /etc/supervisor/conf.d/listsync.conf && \
-    echo "command=/usr/bin/Xvfb :99 -screen 0 1024x768x24" >> /etc/supervisor/conf.d/listsync.conf && \
-    echo "autostart=true" >> /etc/supervisor/conf.d/listsync.conf && \
-    echo "autorestart=true" >> /etc/supervisor/conf.d/listsync.conf && \
-    echo "stdout_logfile=/var/log/supervisor/xvfb.log" >> /etc/supervisor/conf.d/listsync.conf && \
-    echo "stderr_logfile=/var/log/supervisor/xvfb.log" >> /etc/supervisor/conf.d/listsync.conf && \
-    echo "stdout_logfile_maxbytes=1MB" >> /etc/supervisor/conf.d/listsync.conf && \
-    echo "stderr_logfile_maxbytes=1MB" >> /etc/supervisor/conf.d/listsync.conf && \
-    echo "redirect_stderr=true" >> /etc/supervisor/conf.d/listsync.conf && \
-    echo "priority=200" >> /etc/supervisor/conf.d/listsync.conf && \
     echo "" >> /etc/supervisor/conf.d/listsync.conf && \
     echo "[program:listsync-api]" >> /etc/supervisor/conf.d/listsync.conf && \
     echo "command=/usr/src/app/.venv/bin/python start_api.py" >> /etc/supervisor/conf.d/listsync.conf && \

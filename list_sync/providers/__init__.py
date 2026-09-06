@@ -95,22 +95,24 @@ def get_available_providers() -> List[str]:
     return list(PROVIDERS.keys())
 
 
+# Imported one at a time: a provider whose optional dependencies are missing must not
+# stop the others from registering.
+_PROVIDER_MODULES = (
+    "imdb", "trakt", "letterboxd", "mdblist", "stevenlu",
+    "tmdb", "simkl", "tvdb", "anilist", "collections",
+)
+
+
 def _import_all_providers():
     """Import all providers to register them."""
-    try:
-        from . import imdb
-        from . import trakt
-        from . import letterboxd
-        from . import mdblist
-        from . import stevenlu
-        from . import tmdb
-        from . import simkl
-        from . import tvdb
-        from . import anilist
-        from . import collections
-    except ImportError as e:
-        import logging
-        logging.warning(f"Could not import all providers: {e}")
+    import importlib
+    import logging
+
+    for name in _PROVIDER_MODULES:
+        try:
+            importlib.import_module(f".{name}", __package__)
+        except ImportError as e:
+            logging.warning(f"Provider '{name}' unavailable: {e}")
 
 
 # Import providers immediately when this module is loaded

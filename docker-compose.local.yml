@@ -3,10 +3,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        # Pin Chrome major (must stay compatible with the pinned SeleniumBase).
-        # Override via CHROME_MAJOR in .env when bumping Chrome + SeleniumBase together.
-        CHROME_MAJOR: ${CHROME_MAJOR:-138}
     container_name: listsync-full
     ports:
       # Frontend (Nuxt 3 Dashboard) 
@@ -32,8 +28,6 @@ services:
       # Resolve each Letterboxd film's exact TMDB id from its page (recommended)
       - LETTERBOXD_RESOLVE_TMDB=${LETTERBOXD_RESOLVE_TMDB:-true}
       - LETTERBOXD_RESOLVE_WORKERS=${LETTERBOXD_RESOLVE_WORKERS:-8}
-      # uc-mode scraping: run headed on the container's Xvfb (:99). true = old headless (unstable)
-      - LETTERBOXD_HEADLESS=${LETTERBOXD_HEADLESS:-false}
 
       # List Configuration (comma-separated)
       - IMDB_LISTS=${IMDB_LISTS:-}
@@ -56,8 +50,6 @@ services:
       
       # Docker-specific settings
       - RUNNING_IN_DOCKER=true
-      - NO_SANDBOX=1
-      - DISPLAY=:99
     volumes:
       # Persist data directory
       - ./data:/usr/src/app/data

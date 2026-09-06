@@ -7,7 +7,10 @@ import readline
 import logging
 import os
 from colorama import Style
-from seleniumbase import SB
+try:
+    from seleniumbase import SB
+except ImportError:  # pragma: no cover
+    SB = None
 
 
 def custom_input(prompt):

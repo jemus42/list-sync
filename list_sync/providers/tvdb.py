@@ -8,7 +8,22 @@ import requests
 import time
 from typing import List, Dict, Any, Optional
 
-from seleniumbase import SB
+# Browser-driven providers are optional: the image ships without Chrome, so importing
+# SeleniumBase must not stop this module (and the providers after it) from loading.
+try:
+    from seleniumbase import SB
+except ImportError:  # pragma: no cover - depends on deployment
+    SB = None
+
+_NO_BROWSER_MSG = (
+    "This provider needs SeleniumBase and a Chrome install, which this image no longer "
+    "ships. See docs: only the Letterboxd provider works browser-free."
+)
+
+
+def _require_browser():
+    if SB is None:
+        raise RuntimeError(_NO_BROWSER_MSG)
 
 from . import register_provider
 
@@ -253,6 +268,7 @@ def _fetch_tvdb_list_scraping(list_id: str) -> List[Dict[str, Any]]:
     logging.info(f"Fetching TVDB list via web scraping: {list_id}")
     
     try:
+        _require_browser()
         with SB(uc=True, headless=True) as sb:
             # Handle full URLs vs list IDs
             if list_id.startswith(('http://', 'https://')):
