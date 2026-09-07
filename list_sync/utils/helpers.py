@@ -7,11 +7,6 @@ import readline
 import logging
 import os
 from colorama import Style
-try:
-    from seleniumbase import SB
-except ImportError:  # pragma: no cover
-    SB = None
-
 
 def custom_input(prompt):
     """
@@ -135,41 +130,6 @@ def format_time_remaining(seconds):
     minutes = (seconds % 3600) // 60
     secs = seconds % 60
     return f"{int(hours)}h {int(minutes)}m {int(secs)}s"
-
-
-def init_selenium_driver():
-    """
-    Initialize Selenium driver to ensure it's working properly.
-    
-    Raises:
-        Exception: If Selenium driver initialization fails
-    """
-    logging.info("Initializing Selenium driver...")
-    try:
-        chrome_options = [
-            "--no-sandbox",
-            "--headless=new",
-            "--disable-gpu",
-            "--disable-dev-shm-usage",
-            "--disable-software-rasterizer",
-            "--disable-extensions",
-            "--remote-debugging-port=9222",
-            f"--user-data-dir=/tmp/chrome-data-{os.getpid()}"
-        ]
-        
-        with SB(uc=True, 
-               headless=True,
-               browser='chrome',
-               chromium_arg=" ".join(chrome_options),
-               xvfb=True) as sb:
-            logging.info("Chrome version: " + sb.execute_script("return navigator.userAgent"))
-            sb.get("about:blank")
-        logging.info("Successfully initialized Selenium driver")
-    except Exception as e:
-        logging.error(f"Failed to initialize Selenium driver: {str(e)}")
-        logging.error(f"Chrome binary path: {os.environ.get('CHROME_BIN')}")
-        logging.error(f"ChromeDriver path: {os.environ.get('CHROME_DRIVER_PATH')}")
-        raise
 
 
 def sleep_with_countdown(seconds, overseerr_client, setup_logging_func):

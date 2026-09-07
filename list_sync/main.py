@@ -31,7 +31,7 @@ from .ui.display import (
     display_ascii_art, display_banner, display_menu, display_lists,
     display_item_status, display_summary, SyncResults
 )
-from .utils.helpers import custom_input, format_time_remaining, init_selenium_driver, color_gradient, construct_list_url
+from .utils.helpers import custom_input, format_time_remaining, color_gradient, construct_list_url
 from .utils.logger import setup_logging, ensure_data_directory_exists
 from .utils.log_rotation import get_log_rotator, check_and_rotate_logs
 from .utils.sync_status import (
@@ -178,7 +178,6 @@ def startup():
     """Initialize application and ensure required directories and files exist."""
     ensure_data_directory_exists()
     init_database()
-    init_selenium_driver()
 
 
 def initialize_sync_interval():
