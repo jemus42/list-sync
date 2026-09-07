@@ -59,7 +59,9 @@ services:
       - ./logs:/var/log/supervisor
     restart: unless-stopped 
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4222/api/system/health", "&&", "curl", "-f", "http://localhost:3222"]
+      # CMD-SHELL, not CMD: the exec form has no shell, so "&&" was passed to curl as a
+      # URL ("URL rejected: Bad hostname") and the check could never pass.
+      test: ["CMD-SHELL", "curl -fsS http://localhost:4222/api/system/health && curl -fsS -o /dev/null http://localhost:3222"]
       interval: 30s
       timeout: 10s
       retries: 3
