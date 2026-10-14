@@ -4,9 +4,9 @@ services:
     container_name: listsync-full
     ports:
       # Frontend (Nuxt 3 Dashboard) 
-      - "3222:3222"
+      - "127.0.0.1:3222:3222"
       # Backend API (FastAPI)
-      - "4222:4222"
+      - "127.0.0.1:4222:4222"
     environment:
       # Timezone Configuration (set to Europe/London for BST/GMT, change as needed)
       # Timezone - Supports: IANA names (Europe/Paris), abbreviations (CET), offsets (UTC+1, GMT-5)
