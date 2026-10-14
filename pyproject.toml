@@ -20,6 +20,11 @@ halo = ">=0.0.31"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.2.1"
+pytest = "^8.0"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
 
 [tool.ruff]
 line-length = 120
