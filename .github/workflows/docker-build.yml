@@ -10,8 +10,30 @@ on:
   workflow_dispatch:
 
 jobs:
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          # Match PYTHON_VERSION in the Dockerfile
+          python-version: "3.9"
+
+      - name: Install dependencies
+        run: |
+          pip install poetry==1.8.3
+          poetry install --no-root
+
+      - name: Run tests
+        run: poetry run pytest
+
   build:
     name: Build Multi-Arch Image
+    needs: test
     runs-on: ubuntu-latest
 
     permissions:
