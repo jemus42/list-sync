@@ -1,6 +1,6 @@
-"""Self-check for the Letterboxd HTML parsing helpers. Run: python -m list_sync.providers.test_letterboxd_parse"""
+"""Letterboxd HTML parsing helpers."""
 
-from .letterboxd import _next_page_url, _parse_list_page
+from list_sync.providers.letterboxd import _next_page_url, _parse_list_page
 
 _GRID = '''
 <li class="griditem">
@@ -19,7 +19,7 @@ _GRID = '''
 '''
 
 
-def demo():
+def test_parse_list_page():
     items = _parse_list_page(_GRID)
     assert len(items) == 3, items
 
@@ -46,9 +46,3 @@ def demo():
         ' data-item-name="Blade Runner 2049 (2017)"></div>'
     )
     assert yr[0]["title"] == "Blade Runner 2049" and yr[0]["year"] == 2017, yr[0]
-
-    print("letterboxd parse self-check ok")
-
-
-if __name__ == "__main__":
-    demo()
