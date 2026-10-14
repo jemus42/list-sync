@@ -3,6 +3,9 @@ import { join } from 'path'
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
+  // Nuxt 4 defaults srcDir to app/; this project keeps pages/, components/ etc. at the root
+  srcDir: '.',
+
   devtools: { enabled: true },
 
   // Hooks to generate missing tsconfig files
@@ -178,7 +181,8 @@ export default defineNuxtConfig({
   // Vite configuration
   vite: {
     build: {
-      sourcemap: true, // Enable source maps for debugging TDZ errors
+      // Public source maps would hand the full frontend source to anyone who can load the UI
+      sourcemap: false,
     },
     optimizeDeps: {
       include: ['date-fns', 'lucide-vue-next'],
