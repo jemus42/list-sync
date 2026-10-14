@@ -107,3 +107,12 @@ jspm_packages/
 Dockerfile*
 docker-compose*
 .dockerignore 
+# Local deployment state and secrets
+data
+.env.*
+!.env.example
+!.env.core
+*.bak*
+.scratchpad
+.claude
+.venv
