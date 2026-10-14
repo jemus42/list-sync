@@ -4883,7 +4883,7 @@ async def get_collections(
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=100),
     search: str = Query("", description="Search collections by franchise name"),
-    sort: str = Query("total_votes", regex="^(popularity|rating|movie_count|name|total_votes)$", description="Sort by popularity, rating, movie_count, name, or total_votes")
+    sort: str = Query("total_votes", pattern="^(popularity|rating|movie_count|name|total_votes)$", description="Sort by popularity, rating, movie_count, name, or total_votes")
 ):
     """Get all collections with pagination, search, and sorting"""
     try:
@@ -5555,10 +5555,10 @@ async def validate_timezone(timezone_input: dict):
 async def get_log_entries_endpoint(
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=100),
-    level: Optional[str] = Query(None, regex="^(DEBUG|INFO|WARNING|ERROR)$"),
+    level: Optional[str] = Query(None, pattern="^(DEBUG|INFO|WARNING|ERROR)$"),
     category: Optional[List[str]] = Query(None, description="Filter by categories (can specify multiple)"),
     search: Optional[str] = Query(None, description="Search in log messages and media titles"),
-    sort_order: str = Query('desc', regex="^(asc|desc)$", description="Sort order by timestamp")
+    sort_order: str = Query('desc', pattern="^(asc|desc)$", description="Sort order by timestamp")
 ):
     """Get paginated log entries with filtering"""
     try:
@@ -5601,7 +5601,7 @@ async def get_log_entries_endpoint(
 @app.get("/api/logs/stream")
 async def stream_logs(
     last_position: int = Query(0, ge=0),
-    level: Optional[str] = Query(None, regex="^(DEBUG|INFO|WARNING|ERROR)$"),
+    level: Optional[str] = Query(None, pattern="^(DEBUG|INFO|WARNING|ERROR)$"),
     category: Optional[List[str]] = Query(None, description="Filter by categories (can specify multiple)"),
     search: Optional[str] = Query(None, description="Search in log messages and media titles")
 ):
@@ -6248,8 +6248,8 @@ def process_year_distribution(entries: List[LogEntry]) -> List[YearDistributionD
 
 @app.get("/api/analytics")
 async def get_analytics(
-    time_range: str = Query('24h', regex="^(1h|24h|7d|30d)$"),
-    category: str = Query('all', regex="^(all|sync|fetching|matching|scraping)$")
+    time_range: str = Query('24h', pattern="^(1h|24h|7d|30d)$"),
+    category: str = Query('all', pattern="^(all|sync|fetching|matching|scraping)$")
 ):
     """Get comprehensive analytics data"""
     try:
@@ -6259,7 +6259,7 @@ async def get_analytics(
         raise HTTPException(status_code=500, detail=f"Error generating analytics: {str(e)}")
 
 @app.get("/api/analytics/overview")
-async def get_analytics_overview(time_range: str = Query('24h', regex="^(1h|24h|7d|30d)$")):
+async def get_analytics_overview(time_range: str = Query('24h', pattern="^(1h|24h|7d|30d)$")):
     """Get analytics overview data"""
     try:
         analytics_data = process_analytics_data(time_range)
@@ -6268,7 +6268,7 @@ async def get_analytics_overview(time_range: str = Query('24h', regex="^(1h|24h|
         raise HTTPException(status_code=500, detail=f"Error generating overview: {str(e)}")
 
 @app.get("/api/analytics/media-additions")
-async def get_media_additions(time_range: str = Query('24h', regex="^(1h|24h|7d|30d)$")):
+async def get_media_additions(time_range: str = Query('24h', pattern="^(1h|24h|7d|30d)$")):
     """Get media addition analytics"""
     try:
         analytics_data = process_analytics_data(time_range)
@@ -6277,7 +6277,7 @@ async def get_media_additions(time_range: str = Query('24h', regex="^(1h|24h|7d|
         raise HTTPException(status_code=500, detail=f"Error generating media additions: {str(e)}")
 
 @app.get("/api/analytics/list-fetches")
-async def get_list_fetches(time_range: str = Query('24h', regex="^(1h|24h|7d|30d)$")):
+async def get_list_fetches(time_range: str = Query('24h', pattern="^(1h|24h|7d|30d)$")):
     """Get list fetch analytics"""
     try:
         analytics_data = process_analytics_data(time_range)
@@ -6286,7 +6286,7 @@ async def get_list_fetches(time_range: str = Query('24h', regex="^(1h|24h|7d|30d
         raise HTTPException(status_code=500, detail=f"Error generating list fetches: {str(e)}")
 
 @app.get("/api/analytics/matching")
-async def get_matching_analytics(time_range: str = Query('24h', regex="^(1h|24h|7d|30d)$")):
+async def get_matching_analytics(time_range: str = Query('24h', pattern="^(1h|24h|7d|30d)$")):
     """Get matching accuracy analytics"""
     try:
         analytics_data = process_analytics_data(time_range)
@@ -6295,7 +6295,7 @@ async def get_matching_analytics(time_range: str = Query('24h', regex="^(1h|24h|
         raise HTTPException(status_code=500, detail=f"Error generating matching analytics: {str(e)}")
 
 @app.get("/api/analytics/search-failures")
-async def get_search_failures(time_range: str = Query('24h', regex="^(1h|24h|7d|30d)$")):
+async def get_search_failures(time_range: str = Query('24h', pattern="^(1h|24h|7d|30d)$")):
     """Get search failure analytics"""
     try:
         analytics_data = process_analytics_data(time_range)
@@ -6304,7 +6304,7 @@ async def get_search_failures(time_range: str = Query('24h', regex="^(1h|24h|7d|
         raise HTTPException(status_code=500, detail=f"Error generating search failures: {str(e)}")
 
 @app.get("/api/analytics/scraping-performance")
-async def get_scraping_performance(time_range: str = Query('24h', regex="^(1h|24h|7d|30d)$")):
+async def get_scraping_performance(time_range: str = Query('24h', pattern="^(1h|24h|7d|30d)$")):
     """Get scraping performance analytics"""
     try:
         analytics_data = process_analytics_data(time_range)
@@ -6313,7 +6313,7 @@ async def get_scraping_performance(time_range: str = Query('24h', regex="^(1h|24
         raise HTTPException(status_code=500, detail=f"Error generating scraping performance: {str(e)}")
 
 @app.get("/api/analytics/source-distribution")
-async def get_source_distribution(time_range: str = Query('24h', regex="^(1h|24h|7d|30d)$")):
+async def get_source_distribution(time_range: str = Query('24h', pattern="^(1h|24h|7d|30d)$")):
     """Get source distribution analytics"""
     try:
         analytics_data = process_analytics_data(time_range)
@@ -6322,7 +6322,7 @@ async def get_source_distribution(time_range: str = Query('24h', regex="^(1h|24h
         raise HTTPException(status_code=500, detail=f"Error generating source distribution: {str(e)}")
 
 @app.get("/api/analytics/selector-performance")
-async def get_selector_performance(time_range: str = Query('24h', regex="^(1h|24h|7d|30d)$")):
+async def get_selector_performance(time_range: str = Query('24h', pattern="^(1h|24h|7d|30d)$")):
     """Get selector performance analytics"""
     try:
         analytics_data = process_analytics_data(time_range)
@@ -6331,7 +6331,7 @@ async def get_selector_performance(time_range: str = Query('24h', regex="^(1h|24
         raise HTTPException(status_code=500, detail=f"Error generating selector performance: {str(e)}")
 
 @app.get("/api/analytics/genre-distribution")
-async def get_genre_distribution(time_range: str = Query('24h', regex="^(1h|24h|7d|30d)$")):
+async def get_genre_distribution(time_range: str = Query('24h', pattern="^(1h|24h|7d|30d)$")):
     """Get genre distribution analytics"""
     try:
         analytics_data = process_analytics_data(time_range)
@@ -6340,7 +6340,7 @@ async def get_genre_distribution(time_range: str = Query('24h', regex="^(1h|24h|
         raise HTTPException(status_code=500, detail=f"Error generating genre distribution: {str(e)}")
 
 @app.get("/api/analytics/year-distribution")
-async def get_year_distribution(time_range: str = Query('24h', regex="^(1h|24h|7d|30d)$")):
+async def get_year_distribution(time_range: str = Query('24h', pattern="^(1h|24h|7d|30d)$")):
     """Get year distribution analytics"""
     try:
         analytics_data = process_analytics_data(time_range)
@@ -7681,7 +7681,7 @@ class SyncLogParser:
 async def get_sync_history(
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    type: Optional[str] = Query(None, regex="^(full|single)$"),
+    type: Optional[str] = Query(None, pattern="^(full|single)$"),
     start_date: Optional[str] = None,
     end_date: Optional[str] = None
 ):
@@ -7906,7 +7906,7 @@ async def get_sync_session(session_id: str):
 async def get_live_logs(
     page: int = Query(1, ge=1, description="Page number (1-based)"),
     limit: int = Query(200, ge=1, le=500, description="Lines per page (max 500)"),
-    sort_order: str = Query("desc", regex="^(asc|desc)$", description="Sort order: asc or desc")
+    sort_order: str = Query("desc", pattern="^(asc|desc)$", description="Sort order: asc or desc")
 ):
     """Get live log content from the core log file with pagination."""
     try:
@@ -7993,7 +7993,7 @@ async def get_live_logs(
 async def get_backend_logs(
     page: int = Query(1, ge=1, description="Page number (1-based)"),
     limit: int = Query(200, ge=1, le=500, description="Lines per page (max 500)"),
-    sort_order: str = Query("desc", regex="^(asc|desc)$", description="Sort order: asc or desc")
+    sort_order: str = Query("desc", pattern="^(asc|desc)$", description="Sort order: asc or desc")
 ):
     """Get backend log content from the data/list_sync.log file with pagination."""
     try:
@@ -8194,7 +8194,6 @@ async def proxy_image(url: str = Query(..., description="Image URL to proxy/cach
     """
     from list_sync.database import get_cached_image, save_cached_image
     import requests
-    import imghdr
     import os
 
     try:
@@ -8270,8 +8269,17 @@ async def proxy_image(url: str = Query(..., description="Image URL to proxy/cach
                 headers={'Cache-Control': 'no-cache'}
             )
 
-        # Detect image type from actual data (most reliable method)
-        image_type = imghdr.what(None, image_data)
+        # Detect image type from magic bytes (imghdr was removed in Python 3.13)
+        if image_data.startswith(b'\xff\xd8\xff'):
+            image_type = 'jpeg'
+        elif image_data.startswith(b'\x89PNG\r\n\x1a\n'):
+            image_type = 'png'
+        elif image_data[:4] == b'RIFF' and image_data[8:12] == b'WEBP':
+            image_type = 'webp'
+        elif image_data[:6] in (b'GIF87a', b'GIF89a'):
+            image_type = 'gif'
+        else:
+            image_type = None
         if not image_type:
             # Fallback: try to detect from URL or Content-Type header
             content_type = response.headers.get('Content-Type', '')

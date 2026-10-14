@@ -2,8 +2,8 @@
 # Includes: ListSync Core Service + FastAPI Backend + Nuxt 3 Frontend 
 
 # Use specific Python version
-ARG PYTHON_VERSION=3.9
-ARG NODE_VERSION=20
+ARG PYTHON_VERSION=3.13
+ARG NODE_VERSION=24
 
 # Stage 1: Python Builder (ListSync + API)
 FROM python:${PYTHON_VERSION}-slim AS python-builder
@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Poetry
-RUN pip install poetry==1.8.3
+RUN pip install poetry==2.5.1
 
 # Copy Poetry configuration
 COPY pyproject.toml poetry.lock ./
@@ -77,14 +77,9 @@ RUN npm run build
 # Stage 3: Final Runtime Image
 FROM python:${PYTHON_VERSION}-slim AS runtime
 
-# Install system dependencies for Chrome, Node.js, and process management
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    # Chrome dependencies
-    wget \
-    unzip \
-    libglib2.0-0 \
     ca-certificates \
-    # Node.js
+    # Healthcheck
     curl \
     # Process management
     supervisor \
@@ -92,8 +87,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     logrotate \
     # Timezone support
     tzdata \
-    # JSON parsing for Chrome version detection
-    jq \
     && rm -rf /var/lib/apt/lists/*
 
 # Set timezone - use environment variable if provided, otherwise try to detect from host
@@ -124,9 +117,8 @@ RUN if [ "$TZ" = "UTC" ]; then \
     # Set the timezone (will be validated later when Python modules are available)
     ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
-# Install Node.js
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y nodejs
+# The Nuxt server only needs the node binary, not npm or a distro repo
+COPY --from=node-builder /usr/local/bin/node /usr/local/bin/node
 
 # No browser: every enabled provider fetches over plain HTTP.
 
@@ -141,22 +133,11 @@ WORKDIR /usr/src/app
 # Copy Python virtual environment from builder
 COPY --from=python-builder /usr/src/app/.venv .venv
 
-# Copy built Nuxt 3 application from builder
-COPY --from=node-builder /app/frontend/.nuxt ./frontend/.nuxt
+# .output is self-contained (Nitro bundles its runtime deps); build tooling stays in the builder
 COPY --from=node-builder /app/frontend/.output ./frontend/.output
-COPY --from=node-builder /app/frontend/public ./frontend/public
-COPY --from=node-builder /app/frontend/package*.json ./frontend/
-COPY --from=node-builder /app/frontend/node_modules ./frontend/node_modules
-
-# Ensure proper permissions for Node.js binaries in the final image
-RUN chmod +x ./frontend/node_modules/.bin/*
 
 # Copy application source code
 COPY . .
-
-# Copy frontend configuration files
-COPY listsync-nuxt/nuxt.config.ts ./frontend/
-COPY listsync-nuxt/tailwind.config.js ./frontend/
 
 # "activate" Python venv
 ENV PATH="/usr/src/app/.venv/bin:$PATH"
