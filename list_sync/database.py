@@ -6,6 +6,7 @@ import sqlite3
 import os
 import logging
 import hashlib
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any
 from pathlib import Path
 
@@ -141,6 +142,45 @@ def migrate_list_urls():
         
         # Also update any existing URLs that might be incorrect
         update_existing_list_urls()
+
+
+def _sync_owner_alive(pid: Optional[int], started_at: float) -> bool:
+    """Whether the process that opened a sync_history row (started_at, epoch secs) still runs it."""
+    if pid is None:
+        return False
+    try:
+        with open(f"/proc/{pid}/stat") as f:
+            # comm (field 2) may contain spaces; starttime is field 22, in ticks since boot
+            ticks = int(f.read().rsplit(")", 1)[1].split()[19])
+        with open("/proc/stat") as f:
+            btime = next(int(line.split()[1]) for line in f if line.startswith("btime"))
+    except FileNotFoundError:
+        return False
+    # A process that started after the row was written reused the PID. Slack covers the
+    # gap between process start and the INSERT; when unsure, keep the row rather than
+    # closing a live sync.
+    return btime + ticks / os.sysconf("SC_CLK_TCK") <= started_at + 2
+
+
+def _reconcile_orphaned_syncs(cursor) -> None:
+    """Close sync_history rows whose owning process died mid-sync."""
+    cursor.execute(
+        "SELECT id, pid, start_time FROM sync_history WHERE in_progress = 1 AND end_time IS NULL"
+    )
+    orphans = [
+        row_id for row_id, pid, start_time in cursor.fetchall()
+        if not _sync_owner_alive(
+            pid,
+            # start_time defaults to SQLite CURRENT_TIMESTAMP, which is UTC
+            datetime.fromisoformat(start_time).replace(tzinfo=timezone.utc).timestamp(),
+        )
+    ]
+    cursor.executemany(
+        "UPDATE sync_history SET in_progress = 0, end_time = CURRENT_TIMESTAMP, status = 'interrupted' WHERE id = ?",
+        [(row_id,) for row_id in orphans],
+    )
+    if orphans:
+        logging.warning(f"Marked {len(orphans)} orphaned sync(s) as interrupted: ids {orphans}")
 
 
 def init_database():
@@ -384,6 +424,9 @@ def init_database():
         except sqlite3.OperationalError:
             # Indexes might already exist
             pass
+
+        # API and core each run this at startup, and either can restart while the other is mid-sync
+        _reconcile_orphaned_syncs(cursor)
 
         # Overseerr users table - stores synced Overseerr users
         cursor.execute('''
