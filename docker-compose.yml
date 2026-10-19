@@ -1,6 +1,6 @@
 services:
   listsync-full:
-    image: ghcr.io/woahai321/list-sync:main
+    image: ghcr.io/jemus42/list-sync:main
     container_name: listsync-full
     ports:
       # Frontend (Nuxt 3 Dashboard) 
@@ -41,8 +41,6 @@ services:
       
       # Docker-specific settings
       - RUNNING_IN_DOCKER=true
-      - NO_SANDBOX=1
-      - DISPLAY=:99
     volumes:
       # Persist data directory
       - ./data:/usr/src/app/data
@@ -51,12 +49,6 @@ services:
       # Optional: Mount logs for debugging
       - ./logs:/var/log/supervisor
     restart: unless-stopped 
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4222/api/system/health", "&&", "curl", "-f", "http://localhost:3222"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
     # Note: Complete ListSync application with:
     # - Core sync service (python -m list_sync)
     # - FastAPI backend (port 4222)
