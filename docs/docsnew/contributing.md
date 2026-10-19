@@ -183,9 +183,7 @@ list-sync/
 ├── uv.lock                   # Locked dependency versions
 ├── docker-compose.yml        # Production Docker setup
 ├── docker-compose.local.yml  # Development Docker setup
-├── docker-compose.core.yml   # Core-only Docker setup
 ├── Dockerfile                # Main Docker image
-├── Dockerfile.core           # Core-only Docker image
 ├── .env.example              # Environment template
 ├── .gitignore                # Git ignore rules
 ├── .pre-commit-config.yaml   # Pre-commit hooks

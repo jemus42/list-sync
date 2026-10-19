@@ -146,19 +146,12 @@ imdb-overseerr/
 │   ├── nuxt.config.ts          # Nuxt configuration
 │   └── package.json            # Node.js dependencies
 ├── docs/                       # Documentation
-├── development-files/          # Development utilities
-│   ├── analysis/               # Analysis scripts
-│   ├── documentation/          # Additional docs
-│   ├── scripts/                # Helper scripts
-│   └── testing/                # Test files
 ├── api_server.py              # FastAPI backend server
 ├── start_api.py               # API startup script
 ├── pyproject.toml             # Python dependencies (uv)
 ├── Dockerfile                 # Multi-stage container build
-├── Dockerfile.core            # Core-only container
 ├── docker-compose.yml         # Production deployment
 ├── docker-compose.local.yml   # Local development
-└── docker-compose.core.yml    # Core-only deployment
 ```
 
 ### Key Components

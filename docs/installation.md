@@ -83,20 +83,16 @@ flowchart TD
     UseCase -->|Development| Dev[Development Setup]
     UseCase -->|Just testing| Test[Quick Test]
     
-    Prod --> NeedDashboard{Need web<br/>dashboard?}
-    NeedDashboard -->|Yes| FullDocker[Full Stack<br/>docker-compose.yml<br/>✓ Dashboard :3222<br/>✓ API :4222<br/>✓ Core Sync]
-    NeedDashboard -->|No| CoreDocker[Core Only<br/>docker-compose.core.yml<br/>✓ API :4222<br/>✓ Core Sync]
+    Prod --> FullDocker[Full Stack<br/>docker-compose.yml<br/>✓ Dashboard :3222<br/>✓ API :4222<br/>✓ Core Sync]
     
     Dev --> LocalOrDocker{Docker or<br/>native?}
     LocalOrDocker -->|Docker| DevDocker[Local Build<br/>docker-compose.local.yml<br/>Build from source]
     LocalOrDocker -->|Native| ManualSetup[Manual Installation<br/>Python + Node.js<br/>Full control]
     
-    Test --> QuickDocker[Core Deployment<br/>Fastest setup<br/>API access only]
+    Test --> FullDocker
     
     FullDocker --> DeployFull[docker-compose up -d]
-    CoreDocker --> DeployCore[docker-compose -f<br/>docker-compose.core.yml up -d]
     DevDocker --> DeployDev[docker-compose -f<br/>docker-compose.local.yml up -d]
-    QuickDocker --> DeployCore
     ManualSetup --> ManualSteps[Follow manual<br/>installation steps]
     
     DeployFull --> Success[✓ Deployment complete]
@@ -114,7 +110,6 @@ flowchart TD
     style Start fill:#4CAF50
     style Done fill:#4CAF50
     style FullDocker fill:#2196F3
-    style CoreDocker fill:#2196F3
     style TroubleshootInstall fill:#FF9800
 ```
 
@@ -141,9 +136,6 @@ docker-compose -f docker-compose.local.yml up -d
 Deploy only specific components:
 
 ```bash
-# Core sync functionality only (no web UI)
-docker-compose -f docker-compose.core.yml up -d
-
 # Full application (recommended)
 docker-compose up -d
 ```

@@ -100,38 +100,7 @@ docker-compose -f docker-compose.local.yml up -d --build
 </details>
 
 <details>
-<summary>🍿 <strong>Option 2: Core-Only Deployment</strong> (Lightweight)</summary>
-
-### **Lightweight Core Sync Engine**
-
-**Minimal setup with just the sync engine**
-
-```bash
-# 1. Clone the repository
-git clone https://github.com/Woahai321/list-sync.git
-cd list-sync
-
-# 2. Copy and configure environment file
-cp .env.example .env
-nano .env  # Add your Overseerr URL, API key, and lists
-
-# 3. Start with the core docker-compose file
-docker-compose -f docker-compose.core.yml up -d
-
-# Done! Sync runs automatically in the background
-```
-
-**Monitoring Core-Only:**
-```bash
-# View logs
-docker-compose -f docker-compose.core.yml logs -f
-
-```
-
-</details>
-
-<details>
-<summary>🍿 <strong>Option 3: Running ListSync Locally (Without Docker)</strong></summary>
+<summary>🍿 <strong>Option 2: Running ListSync Locally (Without Docker)</strong></summary>
 
 ### **Prerequisites**
 - Python 3.9+, Node.js 18+, Chrome/Chromium, Git

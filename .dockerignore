@@ -111,7 +111,6 @@ docker-compose*
 data
 .env.*
 !.env.example
-!.env.core
 *.bak*
 .scratchpad
 .claude

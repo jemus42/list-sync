@@ -100,22 +100,18 @@ flowchart TD
     UseCase -->|Just testing| Test[Quick Test]
     UseCase -->|Advanced features| Advanced[Advanced Setup]
     
-    Prod --> NeedDashboard{Need web dashboard?}
-    NeedDashboard -->|Yes| FullDocker[Full Stack<br/>docker-compose.yml<br/>✓ Dashboard :3222<br/>✓ API :4222<br/>✓ Core Sync]
-    NeedDashboard -->|No| CoreDocker[Core Only<br/>docker-compose.core.yml<br/>✓ API :4222<br/>✓ Core Sync]
+    Prod --> FullDocker[Full Stack<br/>docker-compose.yml<br/>✓ Dashboard :3222<br/>✓ API :4222<br/>✓ Core Sync]
     
     Dev --> LocalOrDocker{Docker or native?}
     LocalOrDocker -->|Docker| DevDocker[Local Build<br/>docker-compose.local.yml<br/>Build from source]
     LocalOrDocker -->|Native| ManualSetup[Manual Installation<br/>Python + Node.js<br/>Full control]
     
-    Test --> QuickDocker[Core Deployment<br/>Fastest setup<br/>API access only]
+    Test --> FullDocker
     
     Advanced --> MultiInstance[Multi-Instance<br/>Multiple configurations<br/>Load balancing]
     
     FullDocker --> DeployFull[docker-compose up -d]
-    CoreDocker --> DeployCore[docker-compose -f<br/>docker-compose.core.yml up -d]
     DevDocker --> DeployDev[docker-compose -f<br/>docker-compose.local.yml up -d]
-    QuickDocker --> DeployCore
     ManualSetup --> ManualSteps[Follow manual<br/>installation steps]
     MultiInstance --> DeployMulti[Custom docker-compose<br/>Multiple services]
     
@@ -135,7 +131,6 @@ flowchart TD
     style Start fill:#4CAF50
     style Done fill:#4CAF50
     style FullDocker fill:#2196F3
-    style CoreDocker fill:#2196F3
     style TroubleshootInstall fill:#FF9800
 ```
 
@@ -177,17 +172,6 @@ TRAKT_SPECIAL_LISTS=trending:movies,popular:shows
 LETTERBOXD_LISTS=username/watchlist
 
 DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
-```
-
-#### Core Only (API + Sync)
-For headless deployments or when you don't need the web dashboard:
-
-```bash
-# Deploy core services only
-docker-compose -f docker-compose.core.yml up -d
-
-# Access API directly
-curl http://localhost:4222/api/system/health
 ```
 
 ### Development Deployment
