@@ -3686,7 +3686,16 @@ async def get_overseerr_status():
         # Clean URL and add status endpoint
         base_url = overseerr_url.rstrip('/')
         status_url = f"{base_url}/api/v1/status"
-        
+
+        # /status is public, so it can't tell whether the key still works
+        auth_response = requests.get(f"{base_url}/api/v1/auth/me", headers=headers, timeout=10)
+        if auth_response.status_code != 200:
+            return {
+                "isConnected": False,
+                "error": f"API key rejected (HTTP {auth_response.status_code})",
+                "lastChecked": datetime.now().isoformat()
+            }
+
         response = requests.get(status_url, headers=headers, timeout=10)
         
         if response.status_code == 200:

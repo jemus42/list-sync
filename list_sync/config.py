@@ -104,7 +104,8 @@ def load_config() -> Tuple[Optional[str], Optional[str], Optional[str]]:
 def test_overseerr_api(overseerr_url, api_key):
     """Test Overseerr API connection."""
     headers = {"X-Api-Key": api_key, "Content-Type": "application/json"}
-    test_url = f"{overseerr_url}/api/v1/status"
+    # /status is public and passes with any key; /auth/me rejects a wrong one
+    test_url = f"{overseerr_url}/api/v1/auth/me"
     spinner = Halo(text=color_gradient("🔍  Testing API connection...", "#ffaa00", "#ff5500"), spinner="dots")
     spinner.start()
     try:

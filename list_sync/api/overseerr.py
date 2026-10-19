@@ -46,7 +46,8 @@ class OverseerrClient:
         Raises:
             Exception: If the connection test fails
         """
-        test_url = f"{self.overseerr_url}/api/v1/status"
+        # /status is public and passes with any key; /auth/me rejects a wrong one
+        test_url = f"{self.overseerr_url}/api/v1/auth/me"
         try:
             response = requests.get(test_url, headers=self.headers)
             response.raise_for_status()
