@@ -654,6 +654,29 @@ def should_sync_item(overseerr_id: int) -> bool:
         return result is None
 
 
+def is_dismissed(tmdb_id: Optional[str], imdb_id: Optional[str]) -> bool:
+    """Whether the user dismissed this item from the review queue."""
+    if not tmdb_id and not imdb_id:
+        return False
+    with sqlite3.connect(DB_FILE) as conn:
+        row = conn.execute(
+            "SELECT 1 FROM synced_items WHERE status = 'dismissed' AND (tmdb_id = ? OR imdb_id = ?)",
+            (str(tmdb_id) if tmdb_id else None, imdb_id),
+        ).fetchone()
+        return row is not None
+
+
+def set_review_status(item_id: int, status: str) -> bool:
+    """Move a review-queue item between 'needs_review' and 'dismissed'."""
+    other = "needs_review" if status == "dismissed" else "dismissed"
+    with sqlite3.connect(DB_FILE) as conn:
+        cur = conn.execute(
+            "UPDATE synced_items SET status = ? WHERE id = ? AND status = ?",
+            (status, item_id, other),
+        )
+        return cur.rowcount > 0
+
+
 def save_sync_result(title: str, media_type: str, imdb_id: Optional[str], overseerr_id: Optional[int], status: str, year: Optional[int] = None, tmdb_id: Optional[str] = None, list_type: Optional[str] = None, list_id: Optional[str] = None):
     """
     Save the result of a sync operation and track which list(s) it came from.

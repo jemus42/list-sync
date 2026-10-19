@@ -20,7 +20,7 @@ from .config import (
 )
 from .database import (
     init_database, load_list_ids, save_list_id, delete_list,
-    load_sync_interval, configure_sync_interval, should_sync_item,
+    load_sync_interval, configure_sync_interval, should_sync_item, is_dismissed,
     save_sync_result, update_list_item_count, update_list_sync_info, DB_FILE,
     start_sync_in_db, end_sync_in_db, add_item_to_sync, update_sync_lists_in_db
 )
@@ -533,6 +533,12 @@ def process_media_item(item: Dict[str, Any], overseerr_client: OverseerrClient, 
 
     if dry_run:
         result["status"] = "would_be_synced"
+        return result
+
+    # Not saved, so the dismissed status survives the sync
+    if is_dismissed(tmdb_id, imdb_id):
+        logging.info(f"⏭️  SKIP: Dismissed from review queue")
+        result["status"] = "skipped"
         return result
 
     try:

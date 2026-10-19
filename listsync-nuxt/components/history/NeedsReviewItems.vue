@@ -3,7 +3,7 @@
     <!-- Search & Filters -->
     <Card class="border border-amber-500/30 hover:border-amber-400/50 transition-all duration-300">
       <div class="p-3">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
           <Input
             v-model="searchQuery"
             placeholder="Search items awaiting review..."
@@ -13,6 +13,11 @@
           <Select
             v-model="mediaTypeFilter"
             :options="mediaTypeOptions"
+            @update:model-value="() => { currentPage = 1; fetchItems() }"
+          />
+          <Select
+            v-model="viewStatus"
+            :options="viewOptions"
             @update:model-value="() => { currentPage = 1; fetchItems() }"
           />
         </div>
@@ -27,7 +32,7 @@
             <SearchCheckIcon class="w-4 h-4 text-amber-400" />
           </div>
           <div>
-            <p class="text-[10px] text-muted-foreground font-medium">Awaiting Review</p>
+            <p class="text-[10px] text-muted-foreground font-medium">{{ showingDismissed ? 'Dismissed' : 'Awaiting Review' }}</p>
             <p class="text-2xl font-bold text-foreground leading-none">{{ totalItems }}</p>
           </div>
         </div>
@@ -79,7 +84,11 @@
                   {{ item.media_type }}
                 </Badge>
                 <Badge v-if="item.year" variant="default">{{ item.year }}</Badge>
-                <Badge variant="warning">
+                <Badge v-if="showingDismissed" variant="default">
+                  <EyeOffIcon class="w-3 h-3 mr-1" />
+                  Dismissed
+                </Badge>
+                <Badge v-else variant="warning">
                   <SearchCheckIcon class="w-3 h-3 mr-1" />
                   Needs Review
                 </Badge>
@@ -129,6 +138,16 @@
                   <ExternalLinkIcon class="w-3 h-3" />
                   Request in Seerr
                 </a>
+                <button
+                  type="button"
+                  :disabled="busyId === item.id"
+                  class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-muted/30 text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors disabled:opacity-50"
+                  :title="showingDismissed ? 'Put back in the review queue; the next sync processes it again' : 'Acknowledge: syncs skip this item from now on'"
+                  @click="toggleDismissed(item)"
+                >
+                  <component :is="showingDismissed ? Undo2Icon : EyeOffIcon" class="w-3 h-3" />
+                  {{ showingDismissed ? 'Restore' : 'Dismiss' }}
+                </button>
               </div>
             </div>
           </div>
@@ -149,8 +168,8 @@
     <EmptyState
       v-else
       :icon="CheckCircleIcon"
-      title="Nothing to review"
-      description="Every synced item matched an exact ID — no manual review needed."
+      :title="showingDismissed ? 'Nothing dismissed' : 'Nothing to review'"
+      :description="showingDismissed ? 'Dismissed items show up here and can be restored.' : 'Every synced item matched an exact ID — no manual review needed.'"
     />
   </div>
 </template>
@@ -166,6 +185,8 @@ import {
   Info as InfoIcon,
   ExternalLink as ExternalLinkIcon,
   CheckCircle as CheckCircleIcon,
+  EyeOff as EyeOffIcon,
+  Undo2 as Undo2Icon,
 } from 'lucide-vue-next'
 import { formatDistanceToNow } from 'date-fns'
 import { useDebounceFn } from '@vueuse/core'
@@ -188,6 +209,14 @@ const totalItems = ref(0)
 const searchQuery = ref('')
 const mediaTypeFilter = ref('all')
 const overseerrBaseUrl = ref('')
+const viewStatus = ref<'needs_review' | 'dismissed'>('needs_review')
+const showingDismissed = computed(() => viewStatus.value === 'dismissed')
+const busyId = ref<number | string | null>(null)
+
+const viewOptions = [
+  { label: 'Awaiting review', value: 'needs_review' },
+  { label: 'Dismissed', value: 'dismissed' },
+]
 
 const mediaTypeOptions = [
   { label: 'All Types', value: 'all' },
@@ -203,7 +232,8 @@ const fetchItems = async () => {
       currentPage.value,
       perPage.value,
       searchQuery.value,
-      mediaTypeFilter.value
+      mediaTypeFilter.value,
+      viewStatus.value
     )
     items.value = response.items || []
     totalItems.value = response.total || 0
@@ -213,6 +243,18 @@ const fetchItems = async () => {
     totalItems.value = 0
   } finally {
     loading.value = false
+  }
+}
+
+const toggleDismissed = async (item: ReviewItem) => {
+  busyId.value = item.id
+  try {
+    await useApiService().setReviewItemDismissed(item.id, !showingDismissed.value)
+    await fetchItems()
+  } catch (error) {
+    console.error('Error updating review item:', error)
+  } finally {
+    busyId.value = null
   }
 }
 

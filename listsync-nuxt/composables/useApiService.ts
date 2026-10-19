@@ -247,12 +247,19 @@ export function useApiService() {
       page: number = 1,
       limit: number = 50,
       search: string = '',
-      mediaType: string = ''
+      mediaType: string = '',
+      status: string = 'needs_review'
     ) {
-      let url = `${baseURL}/needs-review?page=${page}&limit=${limit}`
+      let url = `${baseURL}/needs-review?page=${page}&limit=${limit}&status=${status}`
       if (search) url += `&search=${encodeURIComponent(search)}`
       if (mediaType && mediaType !== 'all') url += `&media_type_filter=${mediaType}`
       return apiCall(url)
+    },
+
+    async setReviewItemDismissed(id: number | string, dismissed: boolean) {
+      return apiCall(`${baseURL}/needs-review/${id}/${dismissed ? 'dismiss' : 'restore'}`, {
+        method: 'POST',
+      })
     },
 
     // Overseerr Integration

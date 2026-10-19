@@ -34,6 +34,7 @@ import uvicorn
 
 # Import existing ListSync modules
 from list_sync.database import (
+    set_review_status,
     configure_sync_interval,
     load_sync_interval,
     save_sync_result,
@@ -3323,7 +3324,8 @@ async def get_needs_review_items(
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=100),
     search: str = Query("", description="Filter by title"),
-    media_type_filter: str = Query("", description="Filter by media type (movie/tv)")
+    media_type_filter: str = Query("", description="Filter by media type (movie/tv)"),
+    status: str = Query("needs_review", pattern="^(needs_review|dismissed)$")
 ):
     """
     Items flagged 'needs_review' — strict matching found no exact ID match, so they
@@ -3337,7 +3339,8 @@ async def get_needs_review_items(
         cursor = conn.cursor()
         cursor.execute(
             "SELECT id, title, media_type, year, last_synced, source_list_type, source_list_id "
-            "FROM synced_items WHERE status = 'needs_review'"
+            "FROM synced_items WHERE status = ?",
+            (status,)
         )
         rows = cursor.fetchall()
         conn.close()
@@ -3388,6 +3391,22 @@ async def get_needs_review_items(
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/needs-review/{item_id}/dismiss")
+async def dismiss_review_item(item_id: int):
+    """Acknowledge an item so syncs skip it and it leaves the review queue."""
+    if not set_review_status(item_id, "dismissed"):
+        raise HTTPException(status_code=404, detail="No review item with that id")
+    return {"success": True}
+
+
+@app.post("/api/needs-review/{item_id}/restore")
+async def restore_review_item(item_id: int):
+    """Undo a dismissal; the next sync processes the item again."""
+    if not set_review_status(item_id, "needs_review"):
+        raise HTTPException(status_code=404, detail="No dismissed item with that id")
+    return {"success": True}
 
 # Simple in-memory cache for metadata (expires after 1 hour)
 _metadata_cache = {}
