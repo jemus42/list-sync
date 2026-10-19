@@ -2,10 +2,10 @@
 
 git config --global --add safe.directory "*"
 
-poetry install --no-interaction --no-ansi --quiet
+uv sync --quiet
 
 # activate venv
-source $(poetry env info --path)/bin/activate
+source .venv/bin/activate
 
 # setup pre-commit hook
 pre-commit install

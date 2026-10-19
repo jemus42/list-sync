@@ -229,7 +229,7 @@ sequenceDiagram
 The application is containerized using a multi-stage Dockerfile:
 
 **Build Stages:**
-1. **Python Builder** - Poetry dependency resolution
+1. **Python Builder** - uv dependency install from uv.lock
 2. **Node.js Builder** - Nuxt 3 application build
 3. **Runtime Image** - Final production image
 
@@ -403,6 +403,6 @@ Multi-endpoint health checks:
 - **Docker** - Containerization and deployment
 - **Supervisor** - Process management and monitoring
 - **Chrome** - Reliable browser automation
-- **Poetry** - Python dependency management
+- **uv** - Python dependency management
 
 This architecture provides a robust, scalable, and maintainable solution for automated media list synchronization with comprehensive monitoring and management capabilities. 

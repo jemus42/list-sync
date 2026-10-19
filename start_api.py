@@ -5,7 +5,6 @@ ListSync Web UI API Server Startup Script
 
 import os
 import sys
-import subprocess
 import time
 from pathlib import Path
 
@@ -25,14 +24,8 @@ def check_dependencies():
         return True
     except ImportError as e:
         print(f"❌ Missing dependency: {e}")
-        print("📦 Installing dependencies...")
-        try:
-            subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", "api_requirements.txt"])
-            print("✅ Dependencies installed successfully")
-            return True
-        except subprocess.CalledProcessError:
-            print("❌ Failed to install dependencies")
-            return False
+        print("📦 Run `uv sync` to install dependencies")
+        return False
 
 def check_listsync_data():
     """Check if ListSync data directory exists"""

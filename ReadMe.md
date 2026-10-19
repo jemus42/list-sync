@@ -141,7 +141,7 @@ docker-compose -f docker-compose.core.yml logs -f
 ```bash
 # Clone and install dependencies
 git clone https://github.com/Woahai321/list-sync.git && cd list-sync
-pip install -r requirements.txt -r api_requirements.txt
+uv sync
 cd listsync-nuxt && npm install && cd ..
 ```
 

@@ -17,7 +17,7 @@ We welcome contributions to ListSync! This guide will help you get started with 
 
 ### Prerequisites
 
-- **Python 3.9+** with Poetry for dependency management
+- **Python 3.13+** with [uv](https://docs.astral.sh/uv/) for dependency management
 - **Node.js 18+** with npm for frontend development
 - **Docker & Docker Compose** for containerized development
 - **Git** for version control
@@ -33,17 +33,9 @@ We welcome contributions to ListSync! This guide will help you get started with 
 
 2. **Backend Setup (Python)**
    ```bash
-   # Install Poetry if not already installed
-   pip install poetry==1.8.3
-   
-   # Install Python dependencies
-   poetry install
-   
-   # Install additional API dependencies
-   poetry run pip install -r api_requirements.txt
-   
-   # Activate virtual environment
-   poetry shell
+   # Install uv if not already installed: https://docs.astral.sh/uv/
+   # Create .venv with all dependencies (core, API and dev tools)
+   uv sync
    ```
 
 3. **Frontend Setup (Nuxt 3)**
@@ -161,8 +153,7 @@ imdb-overseerr/
 │   └── testing/                # Test files
 ├── api_server.py              # FastAPI backend server
 ├── start_api.py               # API startup script
-├── pyproject.toml             # Python project configuration (Poetry)
-├── requirements.txt           # Python dependencies
+├── pyproject.toml             # Python dependencies (uv)
 ├── Dockerfile                 # Multi-stage container build
 ├── Dockerfile.core            # Core-only container
 ├── docker-compose.yml         # Production deployment
@@ -229,13 +220,10 @@ imdb-overseerr/
 **Backend Testing:**
 ```bash
 # Run Python tests
-poetry run pytest
-
-# Run with coverage
-poetry run pytest --cov=list_sync
+uv run pytest
 
 # Run specific test file
-poetry run pytest tests/test_providers.py
+uv run pytest tests/unit/test_review_dismiss.py
 ```
 
 **Frontend Testing:**

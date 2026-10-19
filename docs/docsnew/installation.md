@@ -318,15 +318,8 @@ brew install --cask google-chrome
 git clone https://github.com/Woahai321/list-sync.git
 cd list-sync
 
-# 2. Create Python virtual environment
-python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# 3. Install Python dependencies
-pip install -r requirements.txt
-
-# 4. Install additional API dependencies
-pip install -r api_requirements.txt
+# 2. Create .venv with all Python dependencies (https://docs.astral.sh/uv/)
+uv sync
 ```
 
 #### Database Setup

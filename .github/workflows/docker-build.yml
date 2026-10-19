@@ -13,23 +13,21 @@ jobs:
   test:
     name: Tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Set up uv
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
         with:
+          version: "0.13.1"
           # Match PYTHON_VERSION in the Dockerfile
           python-version: "3.13"
 
-      - name: Install dependencies
-        run: |
-          pip install poetry==2.5.1
-          poetry install --no-root
-
       - name: Run tests
-        run: poetry run pytest
+        run: uv run --locked pytest
 
   build:
     name: Build Multi-Arch Image

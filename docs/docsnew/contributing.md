@@ -78,16 +78,8 @@ curl http://localhost:4222/api/system/health
 
 #### Backend Setup
 ```bash
-# 1. Create Python virtual environment
-python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# 2. Install dependencies
-pip install -r requirements.txt
-pip install -r api_requirements.txt
-
-# 3. Install development dependencies
-pip install -r requirements-dev.txt
+# Create .venv with all dependencies, dev tools included (https://docs.astral.sh/uv/)
+uv sync
 
 # 4. Setup pre-commit hooks
 pre-commit install
@@ -187,10 +179,8 @@ list-sync/
 │   ├── types/                # TypeScript types
 │   └── utils/                # Utility functions
 ├── api_server.py             # FastAPI server
-├── requirements.txt          # Python dependencies
-├── api_requirements.txt      # API-specific dependencies
-├── requirements-dev.txt      # Development dependencies
-├── pyproject.toml            # Python project configuration
+├── pyproject.toml            # Python dependencies and tool configuration
+├── uv.lock                   # Locked dependency versions
 ├── docker-compose.yml        # Production Docker setup
 ├── docker-compose.local.yml  # Development Docker setup
 ├── docker-compose.core.yml   # Core-only Docker setup

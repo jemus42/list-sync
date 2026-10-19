@@ -17,24 +17,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Poetry
-RUN pip install poetry==2.5.1
+COPY --from=ghcr.io/astral-sh/uv:0.13.1 /uv /bin/uv
 
-# Copy Poetry configuration
-COPY pyproject.toml poetry.lock ./
+# Use the image's Python so the venv still works when copied into the runtime stage
+ENV UV_PYTHON_DOWNLOADS=never \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy
 
-# Poetry settings
-ENV POETRY_NO_INTERACTION=1 \
-    POETRY_VIRTUALENVS_IN_PROJECT=1 \
-    POETRY_VIRTUALENVS_CREATE=true \
-    POETRY_CACHE_DIR=/tmp/poetry_cache
-
-# Build virtual environment with dependencies
-RUN --mount=type=cache,target=/tmp/poetry_cache poetry install --only main --no-root
-
-# Install additional API dependencies
-COPY api_requirements.txt ./
-RUN .venv/bin/pip install -r api_requirements.txt
+COPY pyproject.toml uv.lock ./
+RUN --mount=type=cache,target=/root/.cache/uv uv sync --locked --no-dev
 
 # Stage 2: Node.js Builder (Frontend)
 FROM node:${NODE_VERSION}-slim AS node-builder
