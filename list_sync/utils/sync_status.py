@@ -143,7 +143,8 @@ def get_sync_tracker() -> SyncStatusTracker:
 # Cross-process cancellation persistence
 # ---------------------------------------------
 
-_CANCEL_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "cancel_requests.json")
+# Shared data/ dir (cwd for both API and core), which is the volume the app user can write
+_CANCEL_FILE = os.path.join("data", "cancel_requests.json")
 _PAUSE_KEY = "pause_until"
 
 
