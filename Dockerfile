@@ -133,8 +133,10 @@ COPY . .
 # "activate" Python venv
 ENV PATH="/usr/src/app/.venv/bin:$PATH"
 
-# Create necessary directories
-RUN mkdir -p /usr/src/app/data /var/log/supervisor
+# ponytail: fixed uid 1000 matches the usual host user, so bind-mounted data/ and logs/ stay editable on the host
+RUN useradd --uid 1000 --user-group --no-create-home --home-dir /usr/src/app listsync && \
+    mkdir -p /usr/src/app/data /var/log/supervisor && \
+    chown listsync:listsync /usr/src/app/data /var/log/supervisor
 
 # Create wrapper script for listsync-core to output to both file and stdout
 RUN echo '#!/bin/bash' > /usr/src/app/run-listsync-core.sh && \
@@ -182,9 +184,8 @@ RUN echo '/var/log/supervisor/listsync-core.log {' > /etc/logrotate.d/listsync-c
 # Create supervisor configuration
 RUN echo "[supervisord]" > /etc/supervisor/conf.d/listsync.conf && \
     echo "nodaemon=true" >> /etc/supervisor/conf.d/listsync.conf && \
-    echo "user=root" >> /etc/supervisor/conf.d/listsync.conf && \
     echo "logfile=/var/log/supervisor/supervisord.log" >> /etc/supervisor/conf.d/listsync.conf && \
-    echo "pidfile=/var/run/supervisord.pid" >> /etc/supervisor/conf.d/listsync.conf && \
+    echo "pidfile=/tmp/supervisord.pid" >> /etc/supervisor/conf.d/listsync.conf && \
     echo "silent=true" >> /etc/supervisor/conf.d/listsync.conf && \
     echo "loglevel=warn" >> /etc/supervisor/conf.d/listsync.conf && \
     echo "" >> /etc/supervisor/conf.d/listsync.conf && \
@@ -250,6 +251,8 @@ EXPOSE 3222 4222
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:4222/api/system/health && curl -f http://localhost:3222 || exit 1
+
+USER listsync
 
 # Start all services with supervisor
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/listsync.conf"]

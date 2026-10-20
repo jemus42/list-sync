@@ -48,6 +48,11 @@ services:
       - ./.env:/usr/src/app/.env
       # Optional: Mount logs for debugging
       - ./logs:/var/log/supervisor
+    # Runs as uid 1000; host data/ and logs/ must be owned by it
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     restart: unless-stopped 
     # Note: Complete ListSync application with:
     # - Core sync service (python -m list_sync)
